@@ -102,13 +102,9 @@ test('rejects bad input without replacing the current story', async ({ page }) =
   await expect(page.getByTestId('story-canvas')).toContainText('2019');
 });
 
-test('saved project files round-trip and local drafts survive a reload', async ({ page }) => {
+test('saved project files round-trip without opting into browser storage', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('textbox', { name: 'Scene headline' }).fill('A title worth keeping.');
-  await page.reload();
-  await expect(page.getByRole('textbox', { name: 'Scene headline' })).toHaveValue(
-    'A title worth keeping.',
-  );
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save project' }).click();
   const download = await downloadPromise;
@@ -119,31 +115,7 @@ test('saved project files round-trip and local drafts survive a reload', async (
   await expect(page.getByRole('textbox', { name: 'Scene headline' })).toHaveValue(
     'A title worth keeping.',
   );
-});
-
-test('unavailable local storage keeps the editor usable and explains saving', async ({ page }) => {
-  await page.addInitScript(() =>
-    Object.defineProperty(window, 'localStorage', {
-      get() {
-        throw new Error('Storage disabled');
-      },
-    }),
-  );
-  await page.goto('/');
-  await expect(page.getByText('Browser storage unavailable — save a project file')).toBeVisible();
-  await page.getByRole('textbox', { name: 'Scene headline' }).fill('Still editable.');
-  await expect(page.getByTestId('story-canvas')).toContainText('Still editable.');
-});
-
-test('an incompatible stored draft falls back to a working example', async ({ page }) => {
-  await page.addInitScript(() =>
-    localStorage.setItem('narraplot.draft.v1', '{"schemaVersion":999}'),
-  );
-  await page.goto('/');
-  await expect(page.getByRole('textbox', { name: 'Project title' })).toHaveValue(
-    'A city finding its stride',
-  );
-  await expect(page.getByTestId('story-canvas')).toContainText('2019');
+  expect(await page.evaluate(() => localStorage.getItem('narraplot.draft.v1'))).toBeNull();
 });
 
 test('mobile editor and import dialog fit the viewport', async ({ page }) => {

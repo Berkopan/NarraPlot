@@ -40,7 +40,7 @@ The preview and exports share the same SVG renderer. Switching scenes keeps the 
 | Chart types | Bar and line; one value series |
 | Appearance | Two palettes, editable unit and source, optional attribution |
 | Project files | Save and reopen a validated `.narraplot.json` file |
-| Browser draft | Automatically retain the current draft when local storage is available |
+| Browser draft | Opt in to remembering; restore, discard, or forget the saved copy |
 | Image export | Current scene as SVG or PNG |
 | Story export | A self-contained HTML file with all three scenes |
 
@@ -62,7 +62,13 @@ Read [the data contract](docs/data-contract.md) for file limits and number behav
 
 ## Your data
 
-NarraPlot has no application backend, analytics, or AI service. Import, editing, and export run in the browser. The current draft, including imported data, is saved in this browser's local storage when available and restored on reopening. Browser storage can be cleared or unavailable; download a project file for a copy you control. A project file and a portable HTML export contain the data you put in them, so share those files with that in mind.
+NarraPlot has no application backend, analytics, or AI service. Import, editing, and export run in the browser. **Remembering is off by default.** Turn on “Remember draft in this browser” to save your story, including imported data, on this device. Your choice persists when browser storage is available.
+
+On reopening, choose **Restore draft** or **Discard draft**. The saved copy stays untouched while that decision is pending; you can still edit and export the open story. Drafts from earlier alpha versions are offered for restoration without automatically opting you in. Invalid or unsupported drafts are also preserved until you discard them.
+
+Turning remembering off stops updates but leaves an existing saved copy. **Forget draft** removes the saved copy, turns remembering off, and keeps your open story in the editor. Discarding a pending draft also turns remembering off. These actions affect only NarraPlot's own draft and preference keys. Storage failures are reported; a failed deletion is never presented as success. This alpha does not synchronize open tabs, so close other NarraPlot tabs before forgetting a draft if they might still be saving.
+
+Browser storage can be cleared or unavailable; download a project file for a copy you control. A project file and a portable HTML export contain the data you put in them, so share those files with that in mind.
 
 ## Development
 

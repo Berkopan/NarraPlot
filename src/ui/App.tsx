@@ -12,8 +12,9 @@ import { Dialog } from './Dialog';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
 import { ImportDialog } from './ImportDialog';
+import { DraftControls } from './DraftControls';
+import { useBrowserDraft } from './useBrowserDraft';
 
-const DRAFT_KEY = 'narraplot.draft.v1';
 const SCENE_LABELS = ['Set the scene', 'Find the focus', 'Leave a takeaway'];
 const SCENE_HINTS = [
   'Show the whole picture.',
@@ -21,24 +22,18 @@ const SCENE_HINTS = [
   'Leave your reader with a thought.',
 ];
 
-function loadDraft(): StoryProject {
-  try {
-    const saved = localStorage.getItem(DRAFT_KEY);
-    if (saved) return parseProjectJSON(saved);
-  } catch {
-    /* A missing, unavailable or incompatible draft must not prevent the app from opening. */
-  }
-  return createExampleProject();
-}
-
 export function App() {
-  const [project, setProject] = useState<StoryProject>(loadDraft);
+  const [project, setProject] = useState<StoryProject>(createExampleProject);
   const [activeIndex, setActiveIndex] = useState(0);
   const [dialog, setDialog] = useState<'import' | 'export' | 'help' | null>(null);
   const [notice, setNotice] = useState<{ message: string; error: boolean } | null>(null);
-  const [storageAvailable, setStorageAvailable] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const draft = useBrowserDraft(project, (saved) => {
+    setProject(saved);
+    setActiveIndex(0);
+    setPlaying(false);
+  });
   const openFile = useRef<HTMLInputElement>(null);
   const scene = project.scenes[activeIndex]!;
   const svg = useMemo(() => renderSceneSVG(project, scene.id), [project, scene.id]);
@@ -46,14 +41,6 @@ export function App() {
     ...value,
     title: value.title.trim() || 'Untitled story',
   });
-  useEffect(() => {
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(normalizedProject(project)));
-      setStorageAvailable(true);
-    } catch {
-      setStorageAvailable(false);
-    }
-  }, [project]);
   useEffect(() => {
     if (!notice) return;
     const id = window.setTimeout(() => setNotice(null), 7000);
@@ -196,10 +183,8 @@ export function App() {
               onBlur={() => setProject((current) => normalizedProject(current))}
             />
             <p className="save-state">
-              <Icon name={storageAvailable ? 'check' : 'save'} size={13} />
-              {storageAvailable
-                ? 'Draft saved in this browser'
-                : 'Browser storage unavailable — save a project file'}
+              <Icon name={draft.saved && !draft.error ? 'check' : 'save'} size={13} />
+              {draft.status}
               <span className="dot-separator">·</span>
               {project.points.length} data points
             </p>
@@ -216,6 +201,8 @@ export function App() {
             <Icon name="arrow" size={16} />
           </button>
         </div>
+
+        <DraftControls draft={draft} />
 
         <div className="editor-grid">
           <aside className="panel data-panel" aria-label="Data and appearance">
@@ -489,7 +476,7 @@ export function App() {
           onClick={() => {
             if (
               window.confirm(
-                'Replace this browser draft with the example? Save your project first if you want to keep it.',
+                'Replace your open story with the example? Save a project file first to keep your work. If remembering is on, its saved copy will update too.',
               )
             ) {
               setProject(createExampleProject());
@@ -641,8 +628,10 @@ export function App() {
           </div>
           <div className="notice notice-info">
             <strong>Your browser is the workspace.</strong> Core editing and exporting use no
-            account, API key or data upload. The current draft is stored in this browser when
-            storage is available; save a project file for a durable copy.
+            account, API key or data upload. Turn on “Remember draft in this browser” to retain this
+            story and its imported data on this device. On reopening, choose whether to restore or
+            discard the saved draft. Forget draft removes the saved copy and turns remembering off;
+            save a project file for a copy you control.
           </div>
           <p className="field-note">
             The starting dataset is synthetic. Line charts follow table order at equal spacing; they

@@ -23,12 +23,32 @@ a measured reason: visual parity is easier to maintain with one renderer.
 
 ## State and persistence
 
-The editor holds the current project in browser memory and saves a best-effort
-draft in local storage under `narraplot.draft.v1`. The draft includes imported
-data. Reopening validates that draft before loading it; missing, incompatible, or
-unavailable storage falls back to the example. The UI reports when storage is
-unavailable. Users can also download and reopen project files for a durable copy.
-Import and export should fail visibly without destroying the current project.
+The editor holds the current project in browser memory. Draft retention starts
+off; an explicit opt-in stores `true` under `narraplot.remember-draft.v1` and enables
+best-effort writes to the existing `narraplot.draft.v1` key. The draft format and
+project schema are unchanged, and the saved copy includes imported data.
+
+Startup reads storage before allowing writes; a fresh visit with no saved opt-in
+does not write a draft or preference. A stored draft becomes a pending
+restore/discard choice while the editor opens the example. Saving is paused until
+that choice is resolved, including when the draft is empty, malformed, or from an
+unsupported schema. Pending bytes are not replaced by edits, imports, or exports.
+Earlier alpha drafts without a preference are recoverable with remembering off.
+Restoration validates the project and replaces the open story; if the user has
+already edited it, a confirmation protects those edits.
+
+Turning remembering off removes only the preference key and leaves the saved
+draft. Forget/discard synchronously closes the write gate, turns retention off in
+the current tab, and independently attempts to remove both owned keys. Partial
+deletion and preference failures are reported accurately. A failed draft deletion
+keeps the pending candidate available; no storage operation clears unrelated keys.
+Storage access and quota errors preserve editor/export operation and direct the
+user to project-file saving. Read failures keep writes disabled until a successful
+retry can inspect any existing draft. This alpha has no multi-tab synchronization
+and cannot prevent another already-open tab from saving.
+
+Users can download and reopen project files for a copy they control. Import and
+export should fail visibly without destroying the current project.
 
 Project text is untrusted data. Validation reconstructs supported fields;
 rendering escapes text before placing it in SVG or HTML. External resources are
