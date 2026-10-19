@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "title": "A city finding its stride",
+  "chartType": "bar",
+  "theme": "terracotta",
+  "unit": "thousand trips",
+  "source": "Synthetic example · not observed city statistics",
+  "points": [
+    {
+      "label": "2019",
+      "value": 128
+    },
+    {
+      "label": "2020",
+      "value": 116
+    },
+    {
+      "label": "2021",
+      "value": 164
+    },
+    {
+      "label": "2022",
+      "value": 201
+    },
+    {
+      "label": "2023",
+      "value": 251
+    },
+    {
+      "label": "2024",
+      "value": 312
+    }
+  ],
+  "scenes": [
+    {
+      "id": "overview",
+      "title": "More trips. A different city.",
+      "caption": "Six years of bicycle trips, in one picture. Start with the whole story.",
+      "highlight": null,
+      "needsReview": false
+    },
+    {
+      "id": "focus",
+      "title": "One year brings it into focus.",
+      "caption": "In this illustrative dataset, 2024 has the most bicycle trips: 312 thousand.",
+      "highlight": "2024",
+      "needsReview": false
+    },
+    {
+      "id": "takeaway",
+      "title": "Give the numbers a point.",
+      "caption": "What should your reader take away? Make the last scene your own.",
+      "highlight": "2024",
+      "needsReview": false
+    }
+  ],
+  "showBrand": true
+}

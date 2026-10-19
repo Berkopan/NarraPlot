@@ -1,0 +1,25 @@
+name: Report a reproducible problem
+description: Help us fix an import, edit, or export that did not work as expected.
+title: ""
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: What were you trying to do?
+      description: Include the result you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Smallest reproduction
+      description: List the steps and a tiny synthetic dataset if useful. Remove private data from files and screenshots.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and version
+      placeholder: e.g. Chrome on macOS, NarraPlot commit or version
+    validations:
+      required: true

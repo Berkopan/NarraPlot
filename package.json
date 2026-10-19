@@ -1,0 +1,36 @@
+{
+  "name": "narraplot",
+  "private": true,
+  "version": "0.1.0-alpha.1",
+  "type": "module",
+  "description": "Turn a small table into a clear, shareable visual story in your browser.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "playwright test",
+    "format": "prettier --write src tests index.html package.json tsconfig.json vite.config.ts playwright.config.ts .prettierrc.json",
+    "format:check": "prettier --check src tests index.html package.json tsconfig.json vite.config.ts playwright.config.ts .prettierrc.json",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}
