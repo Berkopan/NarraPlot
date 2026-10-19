@@ -291,6 +291,86 @@ button {
 .save-state svg {
   color: #7f9380;
 }
+.draft-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin: -7px 0 23px;
+  padding: 14px 17px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f8f9f3;
+}
+.draft-choice {
+  flex: 1;
+  min-width: min(100%, 260px);
+}
+.draft-choice label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.draft-choice input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--focus);
+  flex-shrink: 0;
+  margin: 0;
+}
+.draft-choice p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 5px 0 0 24px;
+}
+.draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.draft-actions .button {
+  font-size: 11px;
+}
+.draft-found {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px 24px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+.draft-found > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.draft-found h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.draft-found p,
+.draft-retained,
+.draft-error {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.draft-found p strong {
+  font-weight: 600;
+}
+.draft-retained,
+.draft-error {
+  width: 100%;
+}
+.draft-error {
+  color: #944b36;
+}
 .dot-separator {
   margin: 0 5px;
   color: #aeb8af;
@@ -1487,6 +1567,25 @@ button {
   }
   .save-state .dot-separator {
     margin: 0;
+  }
+  .draft-panel {
+    margin: 0 0 21px;
+    padding: 14px;
+    gap: 10px;
+  }
+  .draft-choice label {
+    font-size: 11px;
+  }
+  .draft-choice p {
+    font-size: 10px;
+  }
+  .draft-found {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 13px;
+  }
+  .draft-found h2 {
+    font-size: 13px;
   }
   .export-top {
     padding: 10px 11px;
