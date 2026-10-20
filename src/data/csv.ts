@@ -11,6 +11,34 @@ export interface DataPoint {
   value: number;
 }
 
+export interface NumericImportFinding {
+  dataRow: number;
+  valueColumn: string;
+  rawCellPreview: string;
+  reason: string;
+}
+
+/** Invalid numeric rows are reported together, without accepting a partial import. */
+export class NumericMappingError extends Error {
+  constructor(
+    public readonly findings: NumericImportFinding[],
+    public readonly failureCount: number,
+  ) {
+    super(`Data row ${findings[0]?.dataRow}: ${findings[0]?.reason ?? 'Invalid value.'}`);
+    this.name = 'NumericMappingError';
+  }
+}
+
+const MAX_NUMERIC_FINDINGS = 3;
+const MAX_CELL_PREVIEW_LENGTH = 120;
+
+function rawCellPreview(raw: string): string {
+  if (!raw.trim()) return '(empty cell)';
+  return raw.length > MAX_CELL_PREVIEW_LENGTH
+    ? `${raw.slice(0, MAX_CELL_PREVIEW_LENGTH - 1)}…`
+    : raw;
+}
+
 export const MAX_POINTS = 12;
 export const MAX_IMPORT_CHARACTERS = 200_000;
 
@@ -100,7 +128,7 @@ export function parseNumericCell(raw: string, format: NumberFormat): number {
       : /^[+-]?(?:\d+(?:,\d*)?|,\d+)(?:[eE][+-]?\d+)?$/;
   if (!pattern.test(value))
     throw new Error(
-      `“${value}” is not a number in the selected format. Grouping separators, currency signs and percent signs are not supported; enter the numeric value only.`,
+      'This cell is not a number in the selected format. Grouping separators, currency signs and percent signs are not supported; enter the numeric value only.',
     );
   const number = Number(format === 'decimal-comma' ? value.replace(',', '.') : value);
   if (number === 0 && /[1-9]/.test(value.split(/[eE]/)[0]!))
@@ -142,7 +170,7 @@ export function mapTable(
       `This alpha supports up to ${MAX_POINTS} rows so that every point stays readable. Filter your table first.`,
     );
   const labels = new Set<string>();
-  return table.rows.map((row, index) => {
+  const validatedLabels = table.rows.map((row, index) => {
     const label = row[labelColumn]!.trim();
     if (!label) throw new Error(`Data row ${index + 1} needs a label.`);
     if (label.length > 80)
@@ -153,12 +181,27 @@ export function mapTable(
         `The label “${label}” appears more than once. Rows are never combined automatically; use unique labels.`,
       );
     labels.add(label);
+    return label;
+  });
+  const points: DataPoint[] = [];
+  const findings: NumericImportFinding[] = [];
+  let failureCount = 0;
+  table.rows.forEach((row, index) => {
+    const raw = row[valueColumn]!;
     try {
-      return { label, value: parseNumericCell(row[valueColumn]!, format) };
+      points.push({ label: validatedLabels[index]!, value: parseNumericCell(raw, format) });
     } catch (error) {
-      throw new Error(
-        `Data row ${index + 1}: ${error instanceof Error ? error.message : 'Invalid value.'}`,
-      );
+      failureCount += 1;
+      if (findings.length < MAX_NUMERIC_FINDINGS) {
+        findings.push({
+          dataRow: index + 1,
+          valueColumn: table.headers[valueColumn]!,
+          rawCellPreview: rawCellPreview(raw),
+          reason: error instanceof Error ? error.message : 'Invalid value.',
+        });
+      }
     }
   });
+  if (failureCount) throw new NumericMappingError(findings, failureCount);
+  return points;
 }

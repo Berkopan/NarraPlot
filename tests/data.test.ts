@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapTable, parseCSV, parseNumericCell } from '../src/data/csv';
+import { mapTable, NumericMappingError, parseCSV, parseNumericCell } from '../src/data/csv';
 
 describe('CSV import', () => {
   it('preserves identifiers and handles BOM, CRLF and quoted delimiters', () => {
@@ -86,5 +86,68 @@ describe('explicit numeric parsing', () => {
     expect(parseNumericCell('0e-999', 'decimal-dot')).toBe(0);
     expect(Object.is(parseNumericCell('-0', 'decimal-dot'), -0)).toBe(false);
     expect(parseNumericCell('1e-9', 'decimal-dot')).toBe(1e-9);
+  });
+});
+
+describe('bounded numeric diagnostics', () => {
+  function diagnosticError(csv: string, labelColumn: number, valueColumn: number) {
+    try {
+      mapTable(parseCSV(csv, ';'), labelColumn, valueColumn, 'decimal-comma');
+    } catch (error) {
+      expect(error).toBeInstanceOf(NumericMappingError);
+      return error as NumericMappingError;
+    }
+    throw new Error('Expected a complete-import validation error.');
+  }
+
+  it('reports all three selected-column failures without losing leading-zero labels', () => {
+    const csv =
+      'Note;Code;Amount\nalpha;001;12,5\nbeta;002;8%\ngamma;003;\ndelta;004;<img src=x onerror=alert(1)>\nepsilon;005;-2,25';
+    const error = diagnosticError(csv, 1, 2);
+    expect(error.failureCount).toBe(3);
+    expect(error.findings.map((finding) => finding.dataRow)).toEqual([2, 3, 4]);
+    expect(error.findings.map((finding) => finding.valueColumn)).toEqual([
+      'Amount',
+      'Amount',
+      'Amount',
+    ]);
+    expect(error.findings.map((finding) => finding.rawCellPreview)).toEqual([
+      '8%',
+      '(empty cell)',
+      '<img src=x onerror=alert(1)>',
+    ]);
+    expect(error.findings[1]?.reason).toContain('Missing values');
+    expect(error.findings[0]?.reason).toContain('selected format');
+    const corrected = csv
+      .replace('002;8%', '002;8')
+      .replace('003;\n', '003;0\n')
+      .replace('004;<img src=x onerror=alert(1)>', '004;9');
+    expect(mapTable(parseCSV(corrected, ';'), 1, 2, 'decimal-comma')).toEqual([
+      { label: '001', value: 12.5 },
+      { label: '002', value: 8 },
+      { label: '003', value: 0 },
+      { label: '004', value: 9 },
+      { label: '005', value: -2.25 },
+    ]);
+  });
+
+  it('shows only three findings, counts additional failures, and truncates unsafe previews', () => {
+    const longCell = '<b>' + 'x'.repeat(300);
+    const csv = `Code;Amount\nA;${longCell}\nB;\nC;8%\nD;not-number\nE;5`;
+    const error = diagnosticError(csv, 0, 1);
+    expect(error.failureCount).toBe(4);
+    expect(error.findings).toHaveLength(3);
+    expect(error.findings.map((finding) => finding.dataRow)).toEqual([1, 2, 3]);
+    expect(error.findings[0]?.rawCellPreview).toHaveLength(120);
+    expect(error.findings[0]?.rawCellPreview.endsWith('…')).toBe(true);
+    expect(error.findings[0]?.reason).not.toContain(longCell);
+    expect(error.findings[0]?.reason.length).toBeLessThan(200);
+    expect(error.findings[1]?.rawCellPreview).toBe('(empty cell)');
+  });
+
+  it('still rejects duplicate labels before any partial numeric mapping', () => {
+    expect(() => mapTable(parseCSV('Code;Amount\nA;8%\nA;no', ';'), 0, 1, 'decimal-comma')).toThrow(
+      'never combined',
+    );
   });
 });

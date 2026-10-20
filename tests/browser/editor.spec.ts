@@ -136,3 +136,88 @@ test('mobile editor and import dialog fit the viewport', async ({ page }) => {
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Paste or import CSV' })).toBeFocused();
 });
+
+for (const width of [1600, 390]) {
+  test(`numeric import guidance remains actionable at ${width}px, then confirms complete data`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Paste or import CSV' }).click();
+    const input = page.getByRole('textbox', { name: 'Paste a table' });
+    const invalid =
+      'Note;Code;Amount\nalpha;001;12,5\nbeta;002;8%\ngamma;003;\ndelta;004;<img src=x onerror=alert(1)>\nepsilon;005;-2,25';
+    await input.fill(invalid);
+    await page.getByLabel('Separator', { exact: true }).selectOption(';');
+    await page.getByLabel('Number format', { exact: true }).selectOption('decimal-comma');
+    await page.getByLabel('Label column', { exact: true }).selectOption('1');
+    await page.getByLabel('Value column', { exact: true }).selectOption('2');
+    await page.getByLabel('Unit', { exact: true }).fill('points');
+    await page.getByLabel('Source or context', { exact: true }).fill('Synthetic QA');
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('3 invalid numeric cells');
+    const rows = alert.locator('li');
+    await expect(rows).toHaveCount(3);
+    for (const [index, row, value] of [
+      [0, 2, '8%'],
+      [1, 3, '(empty cell)'],
+      [2, 4, '<img src=x onerror=alert(1)>'],
+    ] as const) {
+      await expect(rows.nth(index)).toContainText(`Data row ${row} · Amount`);
+      await expect(rows.nth(index).locator('code')).toHaveText(value);
+    }
+    await expect(alert).toContainText('Missing values');
+    await expect(page.getByRole('dialog').locator('img')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Use this data' })).toBeDisabled();
+    await expect(page.getByTestId('story-canvas')).toContainText('2019');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await alert.scrollIntoViewIfNeeded();
+    await testInfo.attach(`invalid-import-${width}px`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+
+    await input.fill(
+      'Note;Code;Amount\nalpha;001;12,5\nbeta;002;8\ngamma;003;0\ndelta;004;9\nepsilon;005;-2,25',
+    );
+    await expect(page.getByLabel('Separator', { exact: true })).toHaveValue(';');
+    await expect(page.getByLabel('Number format', { exact: true })).toHaveValue('decimal-comma');
+    await expect(page.getByLabel('Label column', { exact: true })).toHaveValue('1');
+    await expect(page.getByLabel('Value column', { exact: true })).toHaveValue('2');
+    await expect(page.getByLabel('Unit', { exact: true })).toHaveValue('points');
+    await expect(page.getByLabel('Source or context', { exact: true })).toHaveValue('Synthetic QA');
+    await expect(alert).toHaveCount(0);
+    await expect(page.locator('.import-preview tbody tr')).toHaveCount(5);
+    await expect(page.locator('.import-preview tbody tr').first()).toContainText('001');
+    await expect(page.getByTestId('story-canvas')).toContainText('2019');
+    await testInfo.attach(`corrected-before-confirm-${width}px`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+
+    await page.getByRole('button', { name: 'Use this data' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByTestId('story-canvas')).toContainText('001');
+    await expect(page.getByTestId('story-canvas')).toContainText('005');
+    await expect(page.getByRole('button', { name: 'I’ve reviewed this scene' })).toBeVisible();
+    await page.getByRole('button', { name: 'Export story' }).click();
+    await expect(page.getByRole('button', { name: /PNG image/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /HTML story/ })).toBeDisabled();
+  });
+}
+
+test('import guidance counts numeric failures beyond its three displayed rows', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Paste or import CSV' }).click();
+  await page
+    .getByRole('textbox', { name: 'Paste a table' })
+    .fill('Code,Amount\nA,8%\nB,\nC,$3\nD,wrong\nE,5');
+  const alert = page.getByRole('alert');
+  await expect(alert).toContainText('4 invalid numeric cells');
+  await expect(alert.locator('li')).toHaveCount(3);
+  await expect(alert).toContainText('1 more numeric failure not shown');
+  await expect(page.getByRole('button', { name: 'Use this data' })).toBeDisabled();
+});

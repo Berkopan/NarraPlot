@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { mapTable, parseCSV } from '../data/csv';
+import { mapTable, NumericMappingError, parseCSV } from '../data/csv';
 import type { DataPoint, Delimiter, NumberFormat } from '../data/csv';
 import type { StoryProject } from '../story/model';
 import { replaceData } from '../story/model';
@@ -37,12 +37,19 @@ export function ImportDialog({
       try {
         const points = mapTable(table, labelColumn, valueColumn, format);
         replaceData(project, points, unit, source);
-        return { table, points, error: '' };
+        return { table, points, error: '', numericFindings: [], numericFailureCount: 0 };
       } catch (error) {
         return {
           table,
           points: null,
-          error: error instanceof Error ? error.message : 'Check the selected columns.',
+          error:
+            error instanceof NumericMappingError
+              ? ''
+              : error instanceof Error
+                ? error.message
+                : 'Check the selected columns.',
+          numericFindings: error instanceof NumericMappingError ? error.findings : [],
+          numericFailureCount: error instanceof NumericMappingError ? error.failureCount : 0,
         };
       }
     } catch (error) {
@@ -50,6 +57,8 @@ export function ImportDialog({
         table: null,
         points: null,
         error: error instanceof Error ? error.message : 'Check your CSV.',
+        numericFindings: [],
+        numericFailureCount: 0,
       };
     }
   }, [text, delimiter, labelColumn, valueColumn, format, project, unit, source]);
@@ -220,10 +229,48 @@ export function ImportDialog({
           </label>
         </div>
       </div>
-      {(fileError || result.error) && (
-        <p className="notice notice-error" role="alert">
-          {fileError || result.error}
-        </p>
+      {(fileError || result.error || result.numericFailureCount > 0) && (
+        <div
+          className="notice notice-error"
+          role="alert"
+          style={{ overflowWrap: 'anywhere' }}
+        >
+          {fileError ? (
+            fileError
+          ) : result.numericFailureCount > 0 ? (
+            <>
+              <p>
+                {result.numericFailureCount} invalid numeric{' '}
+                {result.numericFailureCount === 1 ? 'cell' : 'cells'} in the selected value column.
+                Correct every value before importing; no rows have been applied.
+              </p>
+              <ol className="import-error-list">
+                {result.numericFindings.map((finding) => (
+                  <li key={finding.dataRow}>
+                    <strong>
+                      Data row {finding.dataRow} · {finding.valueColumn}
+                    </strong>
+                    <span className="import-error-cell" style={{ display: 'block' }}>
+                      Cell: <code style={{ whiteSpace: 'pre-wrap' }}>{finding.rawCellPreview}</code>
+                    </span>
+                    <span>{finding.reason}</span>
+                  </li>
+                ))}
+              </ol>
+              {result.numericFailureCount > result.numericFindings.length && (
+                <p className="import-more-errors">
+                  {result.numericFailureCount - result.numericFindings.length} more numeric{' '}
+                  {result.numericFailureCount - result.numericFindings.length === 1
+                    ? 'failure'
+                    : 'failures'}{' '}
+                  not shown.
+                </p>
+              )}
+            </>
+          ) : (
+            result.error
+          )}
+        </div>
       )}
       <div className="import-reassurance">
         <Icon name="refresh" size={16} />

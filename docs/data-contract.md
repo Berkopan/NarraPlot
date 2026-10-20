@@ -27,6 +27,16 @@ are unsupported. Missing values are errors. Zero and negative values are valid;
 negative zero is normalized to zero. Values must be finite. Nonzero magnitudes
 must be between `1e-9` and `1e12` inclusive.
 
+For a structurally valid table and valid column mapping, the importer checks all
+numeric cells before applying data. It shows the first three numeric failures
+with one-based data-row numbers, the mapped value-column header, a bounded raw
+cell preview (120 characters maximum), and a reason; any remaining failures
+are counted. Missing cells are labeled explicitly, and CSV cell text is shown
+as text rather than interpreted as markup. A failed import never applies only
+the valid rows. Correcting pasted cells keeps the chosen separator, number
+format, column mapping, unit and source. The existing project is replaced only
+after **Use this data** is confirmed.
+
 Line charts preserve row order with equal spacing. A label that looks like a date
 or a number is still a label. No time interval or continuous x-axis is inferred.
 
