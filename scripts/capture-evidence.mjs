@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -58,9 +58,12 @@ try {
     assert(await page.getByRole('button', { name: 'Use this data' }).isDisabled());
     assert.equal(await page.getByRole('dialog').locator('img').count(), 0, 'Raw cells must not become markup');
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Import overflows');
-    await page.screenshot({ path: path.join(output, `${prefix}-import.png`), fullPage: true });
-    await page.getByRole('alert').scrollIntoViewIfNeeded();
-    await page.screenshot({ path: path.join(output, `${prefix}-diagnostics.png`), fullPage: true });
+    await page.screenshot({ path: path.join(output, `${prefix}-import.png`), fullPage: false });
+    const alert = page.getByRole('alert');
+    await alert.scrollIntoViewIfNeeded();
+    await expect(alert).toBeInViewport({ ratio: 1 });
+    // Full-page capture can resize the viewport and re-center a fixed dialog.
+    await page.screenshot({ path: path.join(output, `${prefix}-diagnostics.png`), fullPage: false });
     await page.keyboard.press('Escape');
     if (viewport.width === 1600) {
       await page.getByRole('button', { name: 'Export story' }).click();
