@@ -17,11 +17,17 @@ jobs:
   verify:
     name: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Verify checked-out revision
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
@@ -32,4 +38,60 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser
+      - name: Browser regressions
+        id: browser
+        run: npm run test:browser
+      - name: Capture actual head UI and exports
+        id: visuals
+        run: node scripts/capture-evidence.mjs --output evidence/head --sha "$EXPECTED_HEAD"
+      - name: Check out comparison baseline
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .baseline
+          persist-credentials: false
+      - name: Build comparison baseline
+        if: ${{ github.event_name == 'pull_request' }}
+        working-directory: .baseline
+        run: |
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+          npm ci
+          npm run build
+      - name: Capture actual baseline UI and exports
+        if: ${{ github.event_name == 'pull_request' }}
+        run: node scripts/capture-evidence.mjs --project-dir .baseline --output evidence/base --sha "$BASE_SHA"
+      - name: Bind evidence to the tested revision
+        if: ${{ always() }}
+        env:
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
+          VISUAL_OUTCOME: ${{ steps.visuals.outcome }}
+        run: |
+          mkdir -p evidence
+          git archive --format=tar --output=evidence/source.tar HEAD
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          root = pathlib.Path('evidence')
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert head == os.environ['EXPECTED_HEAD']
+          manifest = {'schema_version': 1, 'repository': os.environ['GITHUB_REPOSITORY'],
+                      'head_sha': head, 'base_sha': os.environ.get('BASE_SHA') or None,
+                      'run_id': os.environ['GITHUB_RUN_ID'], 'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+                      'browser_outcome': os.environ['BROWSER_OUTCOME'],
+                      'visual_outcome': os.environ['VISUAL_OUTCOME'],
+                      'files': {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+                                for p in sorted(root.rglob('*')) if p.is_file()}}
+          (root / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          PY
+      - name: Publish test reports and visual evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: product-evidence-${{ env.EXPECTED_HEAD }}-${{ github.run_attempt }}
+          path: |
+            evidence/
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: error
