@@ -59,6 +59,8 @@ try {
     assert.equal(await page.getByRole('dialog').locator('img').count(), 0, 'Raw cells must not become markup');
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Import overflows');
     await page.screenshot({ path: path.join(output, `${prefix}-import.png`), fullPage: true });
+    await page.getByRole('alert').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(output, `${prefix}-diagnostics.png`), fullPage: true });
     await page.keyboard.press('Escape');
     if (viewport.width === 1600) {
       await page.getByRole('button', { name: 'Export story' }).click();
